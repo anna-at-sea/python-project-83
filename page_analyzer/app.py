@@ -38,9 +38,10 @@ def add_entry():
     elif new_entry in get_all_urls():
         flash('URL already exists', 'warning')
     else:
+        created_at = date.today().isoformat()
         cur.execute(
             "INSERT INTO urls (name, created_at) VALUES (%s, %s)",
-            (new_entry, date.today())
+            (new_entry, created_at)
         )
         conn.commit()
         flash('Website was added successfully', 'success')
@@ -67,6 +68,16 @@ def url_page(url_id):
         name=url_name,
         date=url_date,
         messages=messages
+    )
+
+
+@app.route('/urls')
+def all_urls():
+    cur.execute("SELECT id, name FROM urls ORDER BY created_at DESC;")
+    all_urls = cur.fetchall()
+    return render_template(
+        'all_urls.html',
+        all_urls=all_urls
     )
 
 
