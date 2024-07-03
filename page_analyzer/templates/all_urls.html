@@ -1,36 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Analyze web page{% endblock %}
+{% block title %}Анализатор страниц{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col">
-            <h1>Websites</h1>
-        </div>
-    </div>
-    <div class="row justify-content-center">
-        <div class="col">
-            <table class="table table-hover table-bordered" data-test="urls">
-                <thead>
-                    <tr>
-                      <td>ID</td>
-                      <td>Name</td>
-                      <td>Last check</td>
-                      <td>Response code</td>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for id, name in all_urls %}
-                    <tr>
-                        <td>{{ id }}</td>
-                        <td><a href="{{ url_for('url_page', url_id=id) }}">{{ name }}</a></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<main class="flex-grow-1">
+<div class="container-lg mt-3">
+    <h1>Сайты</h1>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered text-nowrap" data-test="urls">
+            <thead>
+                <tr>
+                    <td>ID</td>
+                    <td>Имя</td>
+                    <td>Последняя проверка</td>
+                    <td>Код ответа</td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for id, name in all_urls %}
+                <tr>
+                    <td>{{ id }}</td>
+                    <td><a href="{{ url_for('url_page', url_id=id) }}">{{ name }}</a></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
-
+</main>
 {% endblock %}

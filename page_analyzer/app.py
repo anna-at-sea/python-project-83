@@ -33,10 +33,10 @@ def main_page():
 def add_entry():
     new_entry = validate_and_normalize(request.form.to_dict()['url'])
     if not new_entry:
-        flash('Incorrect URL', 'error')
+        flash('Некорректный URL', 'danger')
         return make_response(redirect(url_for('main_page'), code=302))
     elif new_entry in get_all_urls():
-        flash('URL already exists', 'warning')
+        flash('Страница уже существует', 'info')
     else:
         created_at = date.today().isoformat()
         cur.execute(
@@ -44,7 +44,7 @@ def add_entry():
             (new_entry, created_at)
         )
         conn.commit()
-        flash('Website was added successfully', 'success')
+        flash('Страница успешно добавлена', 'success')
     cur.execute("SELECT id FROM urls WHERE name = %s", (new_entry,))
     new_entry_id = cur.fetchall()[0][0]
     response = make_response(

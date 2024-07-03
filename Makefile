@@ -2,10 +2,7 @@ install:
 	poetry install
 
 build:
-	poetry build
-
-publish:
-	poetry publish --dry-run
+	./build.sh
 
 dev:
 	poetry run flask --app page_analyzer:app --debug run
