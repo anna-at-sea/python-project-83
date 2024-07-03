@@ -12,8 +12,12 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 DATABASE_URL = os.getenv('DATABASE_URL')
-conn = psycopg2.connect(DATABASE_URL)
-cur = conn.cursor()
+
+
+def connect():
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    return conn, cur
 
 
 @app.route('/')
@@ -28,19 +32,22 @@ def main_page():
 @app.post('/')
 def add_entry():
     new_entry = validate_and_normalize(request.form.to_dict()['url'])
+    all_entries = get_all_urls()
     if not new_entry:
         flash('Некорректный URL', 'danger')
         return make_response(redirect(url_for('main_page'), code=302))
-    elif new_entry in get_all_urls():
+    elif new_entry in all_entries:
         flash('Страница уже существует', 'info')
     else:
         created_at = date.today().isoformat()
+        conn, cur = connect()
         cur.execute(
             "INSERT INTO urls (name, created_at) VALUES (%s, %s)",
             (new_entry, created_at)
         )
         conn.commit()
         flash('Страница успешно добавлена', 'success')
+    conn, cur = connect()
     cur.execute("SELECT id FROM urls WHERE name = %s", (new_entry,))
     new_entry_id = cur.fetchall()[0][0]
     response = make_response(
@@ -52,6 +59,7 @@ def add_entry():
 @app.route('/urls/<int:url_id>')
 def url_page(url_id):
     messages = get_flashed_messages(with_categories=True)
+    conn, cur = connect()
     cur.execute("SELECT * FROM urls WHERE id = %s", (url_id,))
     current_url = cur.fetchall()
     if not current_url:
@@ -69,6 +77,7 @@ def url_page(url_id):
 
 @app.route('/urls')
 def all_urls():
+    conn, cur = connect()
     cur.execute("SELECT id, name FROM urls ORDER BY created_at DESC;")
     all_urls = cur.fetchall()
     return render_template(
@@ -84,6 +93,7 @@ def validate_and_normalize(url_str):
 
 
 def get_all_urls():
+    conn, cur = connect()
     cur.execute("SELECT name FROM urls;")
     all_entries = cur.fetchall()
     return [entry[0] for entry in all_entries]
