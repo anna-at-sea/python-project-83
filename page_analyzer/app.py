@@ -19,13 +19,9 @@ cur = conn.cursor()
 @app.route('/')
 def main_page():
     messages = get_flashed_messages(with_categories=True)
-    entry = {'name': ''}
-    all_entries = get_all_urls()
     return render_template(
         'main.html',
-        messages=messages,
-        entry=entry,
-        all_entries=all_entries
+        messages=messages
     )
 
 
