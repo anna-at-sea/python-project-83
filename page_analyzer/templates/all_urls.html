@@ -15,11 +15,15 @@
                 </tr>
             </thead>
             <tbody>
-                {% for id, name in all_urls %}
+                {% for id, name, created_at in all_urls %}
                 <tr>
                     <td>{{ id }}</td>
                     <td><a href="{{ url_for('url_page', url_id=id) }}">{{ name }}</a></td>
+                    {% if created_at %}
+                    <td>{{ created_at }}</td>
+                    {% else %}
                     <td></td>
+                    {% endif %}
                     <td></td>
                 </tr>
                 {% endfor %}

@@ -39,11 +39,10 @@ def add_entry():
     elif new_entry in all_entries:
         flash('Страница уже существует', 'info')
     else:
-        created_at = date.today().isoformat()
         conn, cur = connect()
         cur.execute(
             "INSERT INTO urls (name, created_at) VALUES (%s, %s)",
-            (new_entry, created_at)
+            (new_entry, date.today().isoformat())
         )
         conn.commit()
         flash('Страница успешно добавлена', 'success')
@@ -66,24 +65,60 @@ def url_page(url_id):
         return 'Page not found', 404
     url_name = current_url[0][1]
     url_date = current_url[0][2]
+    conn, cur = connect()
+    cur.execute(
+        "SELECT id, created_at \
+        FROM url_checks \
+        WHERE url_id = %s \
+        ORDER BY id DESC;",
+        (url_id,)
+    )
+    url_checks = cur.fetchall()
     return render_template(
         'url_page.html',
         id=url_id,
         name=url_name,
         date=url_date,
-        messages=messages
+        messages=messages,
+        url_checks=url_checks
     )
 
 
 @app.route('/urls')
 def all_urls():
     conn, cur = connect()
-    cur.execute("SELECT id, name FROM urls ORDER BY created_at DESC;")
+    cur.execute(
+        "WITH filtered_checks \
+        AS (\
+        SELECT url_id, MAX(created_at) AS created_at \
+        FROM url_checks \
+        GROUP BY url_id\
+        ) \
+        SELECT urls.id, urls.name, filtered_checks.created_at \
+        FROM urls \
+        LEFT JOIN filtered_checks \
+        ON urls.id = filtered_checks.url_id \
+        ORDER BY id DESC;"
+    )
     all_urls = cur.fetchall()
     return render_template(
         'all_urls.html',
         all_urls=all_urls
     )
+
+
+@app.post('/urls/<id>/checks')
+def check_url(id):
+    conn, cur = connect()
+    cur.execute(
+        "INSERT INTO url_checks (url_id, created_at) VALUES (%s, %s)",
+        (id, date.today().isoformat())
+    )
+    conn.commit()
+    response = make_response(
+        redirect(url_for('url_page', url_id=id), code=302)
+    )
+    return response
 
 
 def validate_and_normalize(url_str):
