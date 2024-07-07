@@ -46,13 +46,13 @@
               </tr>
             </thead>
             <tbody>
-              {% for id, created_at, status_code in url_checks %}
+              {% for id, created_at, status_code, h1, title, description in url_checks %}
               <tr>
                   <td>{{ id }}</td>
                   <td>{{ status_code }}</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
+                  <td>{{ h1 }}</td>
+                  <td>{{ title }}</td>
+                  <td>{{ description }}</td>
                   <td>{{ created_at }}</td>
               </tr>
               {% endfor %}

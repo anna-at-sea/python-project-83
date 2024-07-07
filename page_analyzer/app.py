@@ -5,6 +5,7 @@ import psycopg2
 import requests
 from validators.url import url
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, make_response, \
     url_for, redirect, get_flashed_messages, flash
 
@@ -68,7 +69,7 @@ def url_page(url_id):
     url_date = current_url[0][2]
     conn, cur = connect()
     cur.execute(
-        "SELECT id, created_at, status_code \
+        "SELECT id, created_at, status_code, h1, title, description \
         FROM url_checks \
         WHERE url_id = %s \
         ORDER BY id DESC;",
@@ -115,17 +116,28 @@ def check_url(id):
     cur.execute("SELECT name FROM urls WHERE id = %s;", (id,))
     name = cur.fetchall()[0][0]
     try:
-        requests.Response.raise_for_status(requests.get(name))
-        status_code = requests.get(name).status_code
+        r = requests.get(name)
+        requests.Response.raise_for_status(r)
+        status_code = r.status_code
+        soup = BeautifulSoup(r.text, 'html.parser')
+        h1 = soup.h1.string if soup.h1 else ''
+        title = soup.title.string if soup.title else ''
+        for link in soup.find_all('meta'):
+            if link.get('name') == 'description':
+                description = link.get('content')
+                break
+            else:
+                description = ''
         conn, cur = connect()
         cur.execute(
-            "INSERT INTO url_checks (url_id, created_at, status_code) \
-            VALUES (%s, %s, %s)",
-            (id, date.today().isoformat(), status_code)
+            "INSERT INTO url_checks \
+            (url_id, created_at, status_code, h1, title, description) \
+            VALUES (%s, %s, %s, %s, %s, %s)",
+            (id, date.today().isoformat(), status_code, h1, title, description)
         )
         conn.commit()
-    except Exception:
-        flash('Произошла ошибка при проверке', 'danger')
+    except Exception as e:
+        flash(f'Произошла ошибка при проверке {e}', 'danger')
     response = make_response(
         redirect(url_for('url_page', url_id=id), code=302)
     )
