@@ -51,8 +51,7 @@ def add_entry():
     all_entries = get_all_urls()
     if not new_entry:
         flash('Некорректный URL', 'danger')
-        messages = get_flashed_messages(with_categories=True)
-        return render_template('main.html', messages=messages, entry=entry)
+        return make_response(redirect(url_for('all_urls'), code=302))
     elif new_entry in all_entries:
         flash('Страница уже существует', 'info')
     else:
@@ -103,6 +102,12 @@ def url_page(id):
 
 @app.route('/urls')
 def all_urls():
+    messages = get_flashed_messages(with_categories=True)
+    if messages:
+        return render_template(
+        'main.html',
+        messages=messages
+    )
     conn, cur = connect()
     cur.execute(
         "WITH filtered_checks \
