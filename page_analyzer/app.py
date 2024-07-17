@@ -46,11 +46,13 @@ def main_page():
 
 @app.post('/')
 def add_entry():
-    new_entry = validate_and_normalize(request.form.to_dict()['url'])
+    entry = request.form.to_dict()['url']
+    new_entry = validate_and_normalize(entry)
     all_entries = get_all_urls()
     if not new_entry:
         flash('Некорректный URL', 'danger')
-        return make_response(redirect(url_for('main_page'), code=302))
+        messages = get_flashed_messages(with_categories=True)
+        return render_template('main.html', messages=messages, entry=entry)
     elif new_entry in all_entries:
         flash('Страница уже существует', 'info')
     else:
