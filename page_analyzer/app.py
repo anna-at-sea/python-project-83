@@ -51,7 +51,7 @@ def add_entry():
     all_entries = get_all_urls()
     if not new_entry:
         flash('Некорректный URL', 'danger')
-        return make_response(redirect(url_for('all_urls'), code=302))
+        return make_response(redirect(url_for('all_urls'), code=422))
     elif new_entry in all_entries:
         flash('Страница уже существует', 'info')
     else:
