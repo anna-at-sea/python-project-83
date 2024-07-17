@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% block title %}Анализатор страниц{% endblock %}
 {% block content %}
 <main class="flex-grow-1">
 <div class="container-lg mt-3">
@@ -18,7 +17,7 @@
                 {% for id, name, created_at, status_code in all_urls %}
                 <tr>
                     <td>{{ id }}</td>
-                    <td><a href="{{ url_for('url_page', url_id=id) }}">{{ name }}</a></td>
+                    <td><a href="{{ url_for('url_page', id=id) }}">{{ name }}</a></td>
                     {% if created_at %}
                     <td>{{ created_at }}</td>
                     {% else %}

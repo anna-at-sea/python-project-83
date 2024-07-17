@@ -1,8 +1,8 @@
-from dotenv import load_dotenv
 import os
-from datetime import date
 import psycopg2
 import requests
+from dotenv import load_dotenv
+from datetime import date
 from validators.url import url
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
@@ -20,6 +20,19 @@ def connect():
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
     return conn, cur
+
+
+def validate_and_normalize(url_str):
+    if url(url_str) and len(url_str) <= 255:
+        parsed_url = urlparse(url_str)
+        return f'{parsed_url.scheme}://{parsed_url.netloc}'
+
+
+def get_all_urls():
+    conn, cur = connect()
+    cur.execute("SELECT name FROM urls;")
+    all_entries = cur.fetchall()
+    return [entry[0] for entry in all_entries]
 
 
 @app.route('/')
@@ -44,7 +57,7 @@ def add_entry():
         conn, cur = connect()
         cur.execute(
             "INSERT INTO urls (name, created_at) VALUES (%s, %s)",
-            (new_entry, date.today().isoformat())
+            (new_entry, date.today())
         )
         conn.commit()
         flash('Страница успешно добавлена', 'success')
@@ -52,19 +65,19 @@ def add_entry():
     cur.execute("SELECT id FROM urls WHERE name = %s", (new_entry,))
     new_entry_id = cur.fetchall()[0][0]
     response = make_response(
-        redirect(url_for('url_page', url_id=new_entry_id), code=302)
+        redirect(url_for('url_page', id=new_entry_id), code=302)
     )
     return response
 
 
-@app.route('/urls/<int:url_id>')
-def url_page(url_id):
+@app.route('/urls/<int:id>')
+def url_page(id):
     messages = get_flashed_messages(with_categories=True)
     conn, cur = connect()
-    cur.execute("SELECT * FROM urls WHERE id = %s", (url_id,))
+    cur.execute("SELECT * FROM urls WHERE id = %s", (id,))
     current_url = cur.fetchall()
     if not current_url:
-        return 'Page not found', 404
+        return render_template('not_found.html'), 404
     url_name = current_url[0][1]
     url_date = current_url[0][2]
     conn, cur = connect()
@@ -73,12 +86,12 @@ def url_page(url_id):
         FROM url_checks \
         WHERE url_id = %s \
         ORDER BY id DESC;",
-        (url_id,)
+        (id,)
     )
     url_checks = cur.fetchall()
     return render_template(
         'url_page.html',
-        id=url_id,
+        id=id,
         name=url_name,
         date=url_date,
         messages=messages,
@@ -133,25 +146,13 @@ def check_url(id):
             "INSERT INTO url_checks \
             (url_id, created_at, status_code, h1, title, description) \
             VALUES (%s, %s, %s, %s, %s, %s)",
-            (id, date.today().isoformat(), status_code, h1, title, description)
+            (id, date.today(), status_code, h1, title, description)
         )
         conn.commit()
-    except Exception as e:
-        flash(f'Произошла ошибка при проверке {e}', 'danger')
+        flash('Страница успешно проверена', 'success')
+    except Exception:
+        flash('Произошла ошибка при проверке', 'danger')
     response = make_response(
-        redirect(url_for('url_page', url_id=id), code=302)
+        redirect(url_for('url_page', id=id), code=302)
     )
     return response
-
-
-def validate_and_normalize(url_str):
-    if url(url_str) and len(url_str) <= 255:
-        parsed_url = urlparse(url_str)
-        return f'{parsed_url.scheme}://{parsed_url.netloc}'
-
-
-def get_all_urls():
-    conn, cur = connect()
-    cur.execute("SELECT name FROM urls;")
-    all_entries = cur.fetchall()
-    return [entry[0] for entry in all_entries]
