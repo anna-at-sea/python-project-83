@@ -105,9 +105,9 @@ def all_urls():
     messages = get_flashed_messages(with_categories=True)
     if messages:
         return render_template(
-        'main.html',
-        messages=messages
-    )
+            'main.html',
+            messages=messages
+        )
     conn, cur = connect()
     cur.execute(
         "WITH filtered_checks \
