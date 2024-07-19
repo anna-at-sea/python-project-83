@@ -35,6 +35,46 @@ def get_all_urls():
     return [entry[0] for entry in all_entries]
 
 
+def select_from_bd(table, columns='*', where={}):
+    columns_to_str = '' if columns != '*' else '*'
+    if columns != '*':
+        for column in columns:
+            columns_to_str += f'{column}, '
+    where_to_str = ''
+    val = None
+    if where:
+        for key, value in where.items():
+            where_to_str = f' WHERE {key} = %s'
+            val = (value,)
+    query_without_where = f"SELECT {columns_to_str.strip(' ,')} \
+    FROM {table}{where_to_str};"
+    _, cur = connect()
+    if not val:
+        cur.execute(query_without_where)
+    else:
+        cur.execute(query_without_where, val)
+    return cur.fetchall()
+
+
+def get_all_urls_table():
+    _, cur = connect()
+    cur.execute(
+        "WITH filtered_checks \
+        AS (\
+        SELECT url_id, MAX(created_at) AS created_at, status_code \
+        FROM url_checks \
+        GROUP BY url_id, status_code\
+        ) \
+        SELECT urls.id, urls.name, filtered_checks.created_at, \
+        filtered_checks.status_code \
+        FROM urls \
+        LEFT JOIN filtered_checks \
+        ON urls.id = filtered_checks.url_id \
+        ORDER BY id DESC;"
+    )
+    return cur.fetchall()
+
+
 @app.route('/')
 def main_page():
     messages = get_flashed_messages(with_categories=True)
