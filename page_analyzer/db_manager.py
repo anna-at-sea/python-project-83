@@ -1,0 +1,63 @@
+import os
+import psycopg2
+
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+
+def connect():
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    return conn, cur
+
+
+def select_from_bd(table, columns=[], where={}, desc=False):
+    columns_to_str = '' if columns != [] else '*'
+    for column in columns:
+        columns_to_str += f'{column}, '
+    where_to_str = ''
+    val = None
+    if where:
+        for key, value in where.items():
+            where_to_str = f' WHERE {key} = %s'
+            val = (value,)
+    order_by = ' ORDER BY id DESC' if desc else ''
+    query_without_where = f"SELECT {columns_to_str.strip(' ,')} \
+    FROM {table}{where_to_str}{order_by};"
+    _, cur = connect()
+    if not val:
+        cur.execute(query_without_where)
+    else:
+        cur.execute(query_without_where, val)
+    return cur.fetchall()
+
+
+def insert_into_bd(table, columns, values):
+    columns_to_str = ''
+    for column in columns:
+        columns_to_str += f'{column}, '
+    column_count = len(columns)
+    query = f"INSERT INTO {table} ({columns_to_str.strip(' ,')}) \
+    VALUES ({('%s, ' * column_count).strip(' ,')})"
+    conn, cur = connect()
+    cur.execute(query, values)
+    conn.commit()
+
+
+def get_all_urls_table():
+    _, cur = connect()
+    cur.execute(
+        "WITH filtered_checks \
+        AS (\
+        SELECT url_id, MAX(created_at) AS created_at, status_code \
+        FROM url_checks \
+        GROUP BY url_id, status_code\
+        ) \
+        SELECT urls.id, urls.name, filtered_checks.created_at, \
+        filtered_checks.status_code \
+        FROM urls \
+        LEFT JOIN filtered_checks \
+        ON urls.id = filtered_checks.url_id \
+        ORDER BY id DESC;"
+    )
+    return cur.fetchall()

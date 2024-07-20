@@ -1,6 +1,7 @@
 import os
-import psycopg2
 import requests
+from page_analyzer.db_manager import select_from_bd, insert_into_bd, \
+    get_all_urls_table
 from dotenv import load_dotenv
 from datetime import date
 from validators.url import url
@@ -13,66 +14,12 @@ from flask import Flask, render_template, request, make_response, \
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-DATABASE_URL = os.getenv('DATABASE_URL')
-
-
-def connect():
-    conn = psycopg2.connect(DATABASE_URL)
-    cur = conn.cursor()
-    return conn, cur
 
 
 def validate_and_normalize(url_str):
     if url(url_str) and len(url_str) <= 255:
         parsed_url = urlparse(url_str)
         return f'{parsed_url.scheme}://{parsed_url.netloc}'
-
-
-def get_all_urls():
-    conn, cur = connect()
-    cur.execute("SELECT name FROM urls;")
-    all_entries = cur.fetchall()
-    return [entry[0] for entry in all_entries]
-
-
-def select_from_bd(table, columns='*', where={}):
-    columns_to_str = '' if columns != '*' else '*'
-    if columns != '*':
-        for column in columns:
-            columns_to_str += f'{column}, '
-    where_to_str = ''
-    val = None
-    if where:
-        for key, value in where.items():
-            where_to_str = f' WHERE {key} = %s'
-            val = (value,)
-    query_without_where = f"SELECT {columns_to_str.strip(' ,')} \
-    FROM {table}{where_to_str};"
-    _, cur = connect()
-    if not val:
-        cur.execute(query_without_where)
-    else:
-        cur.execute(query_without_where, val)
-    return cur.fetchall()
-
-
-def get_all_urls_table():
-    _, cur = connect()
-    cur.execute(
-        "WITH filtered_checks \
-        AS (\
-        SELECT url_id, MAX(created_at) AS created_at, status_code \
-        FROM url_checks \
-        GROUP BY url_id, status_code\
-        ) \
-        SELECT urls.id, urls.name, filtered_checks.created_at, \
-        filtered_checks.status_code \
-        FROM urls \
-        LEFT JOIN filtered_checks \
-        ON urls.id = filtered_checks.url_id \
-        ORDER BY id DESC;"
-    )
-    return cur.fetchall()
 
 
 @app.route('/')
@@ -88,23 +35,21 @@ def main_page():
 def add_entry():
     entry = request.form.to_dict()['url']
     new_entry = validate_and_normalize(entry)
-    all_entries = get_all_urls()
+    all_names = select_from_bd('urls', ['name'])
+    names_list = [name[0] for name in all_names]
     if not new_entry:
         flash('Некорректный URL', 'danger')
         return make_response(redirect(url_for('all_urls'), code=302))
-    elif new_entry in all_entries:
+    elif new_entry in names_list:
         flash('Страница уже существует', 'info')
     else:
-        conn, cur = connect()
-        cur.execute(
-            "INSERT INTO urls (name, created_at) VALUES (%s, %s)",
+        insert_into_bd(
+            'urls',
+            ['name', 'created_at'],
             (new_entry, date.today())
         )
-        conn.commit()
         flash('Страница успешно добавлена', 'success')
-    conn, cur = connect()
-    cur.execute("SELECT id FROM urls WHERE name = %s", (new_entry,))
-    new_entry_id = cur.fetchall()[0][0]
+    new_entry_id = select_from_bd('urls', ['id'], {'name': new_entry})[0][0]
     response = make_response(
         redirect(url_for('url_page', id=new_entry_id), code=302)
     )
@@ -114,22 +59,16 @@ def add_entry():
 @app.route('/urls/<int:id>')
 def url_page(id):
     messages = get_flashed_messages(with_categories=True)
-    conn, cur = connect()
-    cur.execute("SELECT * FROM urls WHERE id = %s", (id,))
-    current_url = cur.fetchall()
+    current_url = select_from_bd('urls', where={'id': id})
     if not current_url:
         return render_template('not_found.html'), 404
     url_name = current_url[0][1]
     url_date = current_url[0][2]
-    conn, cur = connect()
-    cur.execute(
-        "SELECT id, created_at, status_code, h1, title, description \
-        FROM url_checks \
-        WHERE url_id = %s \
-        ORDER BY id DESC;",
-        (id,)
-    )
-    url_checks = cur.fetchall()
+    url_checks = select_from_bd(
+        'url_checks',
+        ['id', 'created_at', 'status_code', 'h1', 'title', 'description'],
+        {'url_id': id},
+        True)
     return render_template(
         'url_page.html',
         id=id,
@@ -148,22 +87,7 @@ def all_urls():
             'main.html',
             messages=messages
         ), 422
-    conn, cur = connect()
-    cur.execute(
-        "WITH filtered_checks \
-        AS (\
-        SELECT url_id, MAX(created_at) AS created_at, status_code \
-        FROM url_checks \
-        GROUP BY url_id, status_code\
-        ) \
-        SELECT urls.id, urls.name, filtered_checks.created_at, \
-        filtered_checks.status_code \
-        FROM urls \
-        LEFT JOIN filtered_checks \
-        ON urls.id = filtered_checks.url_id \
-        ORDER BY id DESC;"
-    )
-    all_urls = cur.fetchall()
+    all_urls = get_all_urls_table()
     return render_template(
         'all_urls.html',
         all_urls=all_urls
@@ -172,9 +96,7 @@ def all_urls():
 
 @app.post('/urls/<id>/checks')
 def check_url(id):
-    conn, cur = connect()
-    cur.execute("SELECT name FROM urls WHERE id = %s;", (id,))
-    name = cur.fetchall()[0][0]
+    name = select_from_bd('urls', ['name'], {'id': id})[0][0]
     try:
         r = requests.get(name)
         requests.Response.raise_for_status(r)
@@ -188,14 +110,12 @@ def check_url(id):
                 break
             else:
                 description = ''
-        conn, cur = connect()
-        cur.execute(
-            "INSERT INTO url_checks \
-            (url_id, created_at, status_code, h1, title, description) \
-            VALUES (%s, %s, %s, %s, %s, %s)",
+        insert_into_bd(
+            'url_checks',
+            ['url_id', 'created_at', 'status_code',
+             'h1', 'title', 'description'],
             (id, date.today(), status_code, h1, title, description)
         )
-        conn.commit()
         flash('Страница успешно проверена', 'success')
     except Exception:
         flash('Произошла ошибка при проверке', 'danger')
