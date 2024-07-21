@@ -1,12 +1,9 @@
 import os
-import requests
 from page_analyzer.db_manager import select_from_bd, insert_into_bd, \
     get_all_urls_table
+from page_analyzer.url_parser import validate_and_normalize, URLInfo
 from dotenv import load_dotenv
 from datetime import date
-from validators.url import url
-from urllib.parse import urlparse
-from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, make_response, \
     url_for, redirect, get_flashed_messages, flash
 
@@ -14,12 +11,6 @@ from flask import Flask, render_template, request, make_response, \
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-
-
-def validate_and_normalize(url_str):
-    if url(url_str) and len(url_str) <= 255:
-        parsed_url = urlparse(url_str)
-        return f'{parsed_url.scheme}://{parsed_url.netloc}'
 
 
 @app.route('/')
@@ -97,24 +88,27 @@ def all_urls():
 @app.post('/urls/<id>/checks')
 def check_url(id):
     name = select_from_bd('urls', ['name'], {'id': id})[0][0]
+    info = URLInfo(name)
     try:
-        r = requests.get(name)
-        requests.Response.raise_for_status(r)
-        status_code = r.status_code
-        soup = BeautifulSoup(r.text, 'html.parser')
-        h1 = soup.h1.string if soup.h1 else ''
-        title = soup.title.string if soup.title else ''
-        for link in soup.find_all('meta'):
-            if link.get('name') == 'description':
-                description = link.get('content')
-                break
-            else:
-                description = ''
+        info.check_for_errors()
         insert_into_bd(
             'url_checks',
-            ['url_id', 'created_at', 'status_code',
-             'h1', 'title', 'description'],
-            (id, date.today(), status_code, h1, title, description)
+            [
+                'url_id',
+                'created_at',
+                'status_code',
+                'h1',
+                'title',
+                'description'
+            ],
+            (
+                id,
+                date.today(),
+                info.get_status_code(),
+                info.get_h1(),
+                info.get_title(),
+                info.get_description()
+            )
         )
         flash('Страница успешно проверена', 'success')
     except Exception:
