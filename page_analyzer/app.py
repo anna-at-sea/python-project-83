@@ -5,7 +5,7 @@ from page_analyzer.url_parser import validate_and_normalize, URLInfo
 from dotenv import load_dotenv
 from datetime import date
 from flask import Flask, render_template, request, make_response, \
-    url_for, redirect, get_flashed_messages, flash
+    url_for, redirect, flash, get_flashed_messages
 
 
 load_dotenv()
@@ -15,10 +15,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 @app.route('/')
 def main_page():
-    messages = get_flashed_messages(with_categories=True)
     return render_template(
-        'main.html',
-        messages=messages
+        'main.html'
     )
 
 
@@ -49,7 +47,6 @@ def add_entry():
 
 @app.route('/urls/<int:id>')
 def url_page(id):
-    messages = get_flashed_messages(with_categories=True)
     current_url = select_from_bd('urls', where={'id': id})
     if not current_url:
         return render_template('not_found.html'), 404
@@ -65,7 +62,6 @@ def url_page(id):
         id=id,
         name=url_name,
         date=url_date,
-        messages=messages,
         url_checks=url_checks
     )
 
@@ -75,8 +71,7 @@ def all_urls():
     messages = get_flashed_messages(with_categories=True)
     if messages:
         return render_template(
-            'main.html',
-            messages=messages
+            'main.html'
         ), 422
     all_urls = get_all_urls_table()
     return render_template(
