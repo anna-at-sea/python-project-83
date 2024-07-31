@@ -10,8 +10,8 @@
 [Page Analyzer Website](https://page-analyzer-1soa.onrender.com/)
 
 ### Usage example:
-![Screenshot1](screenshots/pa - main.png)
-![Screenshot2](screenshots/pa - added.png)
-![Screenshot3](screenshots/pa - checked.png)
-![Screenshot4](screenshots/pa - sites.png)
-![Screenshot5](screenshots/pa - incorrect.png)
+![Screenshot1](screenshots/pa-main.png)
+![Screenshot2](screenshots/pa-added.png)
+![Screenshot3](screenshots/pa-checked.png)
+![Screenshot4](screenshots/pa-sites.png)
+![Screenshot5](screenshots/pa-incorrect.png)
