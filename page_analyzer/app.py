@@ -1,9 +1,9 @@
 import os
-from page_analyzer.db_manager import select_from_bd, insert_into_bd, \
-    get_all_urls_table
-from page_analyzer.url_parser import validate_and_normalize, URLInfo
+from page_analyzer.db_manager import select_from_bd, \
+    get_all_urls_table, add_url, add_url_check
+from page_analyzer.url_parser import validate, normalize, \
+    get_url_info, check_for_errors
 from dotenv import load_dotenv
-from datetime import date
 from flask import Flask, render_template, request, make_response, \
     url_for, redirect, flash, get_flashed_messages
 
@@ -23,7 +23,7 @@ def main_page():
 @app.post('/')
 def add_entry():
     entry = request.form.to_dict()['url']
-    new_entry = validate_and_normalize(entry)
+    new_entry = normalize(entry) if validate(entry) else None
     all_names = select_from_bd('urls', ['name'])
     names_list = [name[0] for name in all_names]
     if not new_entry:
@@ -32,11 +32,7 @@ def add_entry():
     elif new_entry in names_list:
         flash('Страница уже существует', 'info')
     else:
-        insert_into_bd(
-            'urls',
-            ['name', 'created_at'],
-            (new_entry, date.today())
-        )
+        add_url(new_entry)
         flash('Страница успешно добавлена', 'success')
     new_entry_id = select_from_bd('urls', ['id'], {'name': new_entry})[0][0]
     response = make_response(
@@ -47,14 +43,16 @@ def add_entry():
 
 @app.route('/urls/<int:id>')
 def url_page(id):
-    current_url = select_from_bd('urls', where={'id': id})
+    current_url = select_from_bd(
+        'urls', ['name', 'DATE(created_at)'], where={'id': id}
+    )
     if not current_url:
         return render_template('not_found.html'), 404
-    url_name = current_url[0][1]
-    url_date = current_url[0][2]
+    url_name = current_url[0][0]
+    url_date = current_url[0][1]
     url_checks = select_from_bd(
         'url_checks',
-        ['id', 'created_at', 'status_code', 'h1', 'title', 'description'],
+        ['id', 'DATE(created_at)', 'status_code', 'h1', 'title', 'description'],
         {'url_id': id},
         True)
     return render_template(
@@ -83,28 +81,9 @@ def all_urls():
 @app.post('/urls/<id>/checks')
 def check_url(id):
     name = select_from_bd('urls', ['name'], {'id': id})[0][0]
-    info = URLInfo(name)
     try:
-        info.check_for_errors()
-        insert_into_bd(
-            'url_checks',
-            [
-                'url_id',
-                'created_at',
-                'status_code',
-                'h1',
-                'title',
-                'description'
-            ],
-            (
-                id,
-                date.today(),
-                info.get_status_code(),
-                info.get_h1(),
-                info.get_title(),
-                info.get_description()
-            )
-        )
+        check_for_errors(name)
+        add_url_check(id, *get_url_info(name))
         flash('Страница успешно проверена', 'success')
     except Exception:
         flash('Произошла ошибка при проверке', 'danger')

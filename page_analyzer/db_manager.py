@@ -34,15 +34,18 @@ def select_from_bd(table, columns=[], where={}, desc=False):
     return cur.fetchall()
 
 
-def insert_into_bd(table, columns, values):
-    columns_to_str = ''
-    for column in columns:
-        columns_to_str += f'{column}, '
-    column_count = len(columns)
-    query = f"INSERT INTO {table} ({columns_to_str.strip(' ,')}) \
-    VALUES ({('%s, ' * column_count).strip(' ,')})"
+def add_url(name):
     conn, cur = connect()
-    cur.execute(query, values)
+    cur.execute("INSERT INTO urls (name) VALUES (%s)", (name,))
+    conn.commit()
+
+
+def add_url_check(*values):
+    conn, cur = connect()
+    cur.execute(
+        "INSERT INTO url_checks (url_id, status_code, h1, title, description) \
+        VALUES (%s, %s, %s, %s, %s)", (values)
+    )
     conn.commit()
 
 
@@ -51,7 +54,7 @@ def get_all_urls_table():
     cur.execute(
         "WITH filtered_checks \
         AS (\
-        SELECT url_id, MAX(created_at) AS created_at, status_code \
+        SELECT url_id, MAX(DATE(created_at)) AS created_at, status_code \
         FROM url_checks \
         GROUP BY url_id, status_code\
         ) \
