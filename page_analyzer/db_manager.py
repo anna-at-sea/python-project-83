@@ -17,25 +17,37 @@ class Connection:
         self.conn.close()
 
 
-def select_from_bd(table, columns=[], where={}, desc=False):
-    columns_to_str = '' if columns != [] else '*'
-    for column in columns:
-        columns_to_str += f'{column}, '
-    where_to_str = ''
-    val = None
-    if where:
-        for key, value in where.items():
-            where_to_str = f' WHERE {key} = %s'
-            val = (value,)
-    order_by = ' ORDER BY id DESC' if desc else ''
-    query_without_where = f"SELECT {columns_to_str.strip(' ,')} \
-    FROM {table}{where_to_str}{order_by};"
+def get_urls_list():
     with Connection() as connection:
         cur = connection.cursor()
-        if not val:
-            cur.execute(query_without_where)
-        else:
-            cur.execute(query_without_where, val)
+        cur.execute("SELECT name FROM urls;")
+        return [name[0] for name in cur.fetchall()]
+
+
+def get_url_id_by_name(name):
+    with Connection() as connection:
+        cur = connection.cursor()
+        cur.execute("SELECT id FROM urls WHERE name = %s;", (name,))
+        return cur.fetchall()[0][0]
+
+
+def get_url_by_id(id):
+    with Connection() as connection:
+        cur = connection.cursor()
+        cur.execute(
+            "SELECT name, DATE(created_at) FROM urls WHERE id = %s;", (id,)
+        )
+        name, created_at = cur.fetchall()[0]
+        return name, created_at
+
+
+def get_url_checks_by_id(id):
+    with Connection() as connection:
+        cur = connection.cursor()
+        cur.execute(
+            "SELECT id, DATE(created_at), status_code, h1, title, description \
+            FROM url_checks WHERE url_id = %s ORDER BY id DESC;", (id,)
+        )
         return cur.fetchall()
 
 

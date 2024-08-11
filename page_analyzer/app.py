@@ -1,6 +1,7 @@
 import os
-from page_analyzer.db_manager import select_from_bd, \
-    get_all_urls_table, add_url, add_url_check
+from page_analyzer.db_manager import get_all_urls_table, add_url, \
+    add_url_check, get_urls_list, get_url_id_by_name, get_url_by_id, \
+    get_url_checks_by_id
 from page_analyzer.url_parser import validate, normalize, \
     get_url_info, check_for_errors
 from dotenv import load_dotenv
@@ -24,17 +25,16 @@ def main_page():
 def add_entry():
     entry = request.form.to_dict()['url']
     new_entry = normalize(entry) if validate(entry) else None
-    all_names = select_from_bd('urls', ['name'])
-    names_list = [name[0] for name in all_names]
+    names_list = get_urls_list()
     if not new_entry:
         flash('Некорректный URL', 'danger')
-        return make_response(redirect(url_for('all_urls'), code=302))
+        return render_template('main.html'), 422
     elif new_entry in names_list:
         flash('Страница уже существует', 'info')
     else:
         add_url(new_entry)
         flash('Страница успешно добавлена', 'success')
-    new_entry_id = select_from_bd('urls', ['id'], {'name': new_entry})[0][0]
+    new_entry_id = get_url_id_by_name(new_entry)
     response = make_response(
         redirect(url_for('url_page', id=new_entry_id), code=302)
     )
@@ -43,18 +43,11 @@ def add_entry():
 
 @app.route('/urls/<int:id>')
 def url_page(id):
-    current_url = select_from_bd(
-        'urls', ['name', 'DATE(created_at)'], where={'id': id}
-    )
+    current_url = get_url_by_id(id)
     if not current_url:
         return render_template('not_found.html'), 404
-    url_name = current_url[0][0]
-    url_date = current_url[0][1]
-    url_checks = select_from_bd(
-        'url_checks',
-        ['id', 'DATE(created_at)', 'status_code', 'h1', 'title', 'description'],
-        {'url_id': id},
-        True)
+    url_name, url_date = current_url
+    url_checks = get_url_checks_by_id(id)
     return render_template(
         'url_page.html',
         id=id,
@@ -80,7 +73,7 @@ def all_urls():
 
 @app.post('/urls/<id>/checks')
 def check_url(id):
-    name = select_from_bd('urls', ['name'], {'id': id})[0][0]
+    name = get_url_by_id(id)[0]
     try:
         check_for_errors(name)
         add_url_check(id, *get_url_info(name))

@@ -6,6 +6,16 @@
 [![CI](https://github.com/anna-at-sea/python-project-83/actions/workflows/flask-app.yml/badge.svg)](https://github.com/anna-at-sea/python-project-83/actions/workflows/flask-app.yml)
 [![Maintainability](https://api.codeclimate.com/v1/badges/f3b95da4d9fd79a8f350/maintainability)](https://codeclimate.com/github/anna-at-sea/python-project-83/maintainability)
 
+### System requirements:
+* python = "^3.10"
+* poetry = "^1.4.2"
+
+### Installation:
+`make build`
+
+### Run website locally:
+`make dev`
+
 ### Website:
 [Page Analyzer Website](https://page-analyzer-1soa.onrender.com/)
 
