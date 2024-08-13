@@ -28,13 +28,14 @@ def add_entry():
     names_list = get_urls_list()
     if not new_entry:
         flash('Некорректный URL', 'danger')
-        return render_template('main.html'), 422
+        return make_response(redirect(url_for('all_urls'), code=302))
+        # Если не делать редирект на /urls, то тесты Хекслета не проходят
     elif new_entry in names_list:
         flash('Страница уже существует', 'info')
+        new_entry_id = get_url_id_by_name(new_entry)
     else:
-        add_url(new_entry)
+        new_entry_id = add_url(new_entry)
         flash('Страница успешно добавлена', 'success')
-    new_entry_id = get_url_id_by_name(new_entry)
     response = make_response(
         redirect(url_for('url_page', id=new_entry_id), code=302)
     )
@@ -60,6 +61,8 @@ def url_page(id):
 @app.route('/urls')
 def all_urls():
     messages = get_flashed_messages(with_categories=True)
+    # Здесь не поможет получение флеш сообщений на уровне шаблона
+    # Получаю их здесь, чтобы понимать, который шаблон загружать (см. ниже)
     if messages:
         return render_template(
             'main.html'

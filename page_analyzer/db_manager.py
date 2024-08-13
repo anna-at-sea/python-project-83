@@ -7,33 +7,27 @@ load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 
-class Connection:
-
-    def __enter__(self):
-        self.conn = psycopg2.connect(DATABASE_URL)
-        return self.conn
-
-    def __exit__(self, type, value, traceback):
-        self.conn.close()
+def connection():
+    return psycopg2.connect(DATABASE_URL)
 
 
 def get_urls_list():
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute("SELECT name FROM urls;")
         return [name[0] for name in cur.fetchall()]
 
 
 def get_url_id_by_name(name):
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute("SELECT id FROM urls WHERE name = %s;", (name,))
         return cur.fetchall()[0][0]
 
 
 def get_url_by_id(id):
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute(
             "SELECT name, DATE(created_at) FROM urls WHERE id = %s;", (id,)
         )
@@ -42,8 +36,8 @@ def get_url_by_id(id):
 
 
 def get_url_checks_by_id(id):
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute(
             "SELECT id, DATE(created_at), status_code, h1, title, description \
             FROM url_checks WHERE url_id = %s ORDER BY id DESC;", (id,)
@@ -52,26 +46,30 @@ def get_url_checks_by_id(id):
 
 
 def add_url(name):
-    with Connection() as connection:
-        cur = connection.cursor()
-        cur.execute("INSERT INTO urls (name) VALUES (%s)", (name,))
-        connection.commit()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO urls (name) VALUES (%s) RETURNING id;", (name,)
+        )
+        id = cur.fetchall()[0][0]
+        conn.commit()
+    return id
 
 
 def add_url_check(*values):
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute(
             "INSERT INTO url_checks \
             (url_id, status_code, h1, title, description) \
             VALUES (%s, %s, %s, %s, %s)", (values)
         )
-        connection.commit()
+        conn.commit()
 
 
 def get_all_urls_table():
-    with Connection() as connection:
-        cur = connection.cursor()
+    with connection() as conn:
+        cur = conn.cursor()
         cur.execute(
             "WITH filtered_checks \
             AS (\
