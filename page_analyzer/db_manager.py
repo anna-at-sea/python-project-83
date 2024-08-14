@@ -1,5 +1,6 @@
 import os
 import psycopg2
+import psycopg2.extras
 from dotenv import load_dotenv
 
 
@@ -11,33 +12,32 @@ def connection():
     return psycopg2.connect(DATABASE_URL)
 
 
-def get_urls_list():
-    with connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT name FROM urls;")
-        return [name[0] for name in cur.fetchall()]
-
-
 def get_url_id_by_name(name):
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur
+    ):
         cur.execute("SELECT id FROM urls WHERE name = %s;", (name,))
-        return cur.fetchall()[0][0]
+        return cur.fetchone()['id']
 
 
 def get_url_by_id(id):
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor() as cur
+    ):
         cur.execute(
             "SELECT name, DATE(created_at) FROM urls WHERE id = %s;", (id,)
         )
-        name, created_at = cur.fetchall()[0]
+        name, created_at = cur.fetchone()
         return name, created_at
 
 
 def get_url_checks_by_id(id):
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor() as cur
+    ):
         cur.execute(
             "SELECT id, DATE(created_at), status_code, h1, title, description \
             FROM url_checks WHERE url_id = %s ORDER BY id DESC;", (id,)
@@ -46,19 +46,23 @@ def get_url_checks_by_id(id):
 
 
 def add_url(name):
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur
+    ):
         cur.execute(
             "INSERT INTO urls (name) VALUES (%s) RETURNING id;", (name,)
         )
-        id = cur.fetchall()[0][0]
+        id = cur.fetchone()['id']
         conn.commit()
     return id
 
 
 def add_url_check(*values):
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur
+    ):
         cur.execute(
             "INSERT INTO url_checks \
             (url_id, status_code, h1, title, description) \
@@ -68,8 +72,10 @@ def add_url_check(*values):
 
 
 def get_all_urls_table():
-    with connection() as conn:
-        cur = conn.cursor()
+    with (
+        connection() as conn,
+        conn.cursor() as cur
+    ):
         cur.execute(
             "WITH filtered_checks \
             AS (\
