@@ -12,14 +12,9 @@ def normalize(url_str):
     return f'{parsed_url.scheme}://{parsed_url.netloc}'
 
 
-def get_url_info(html):
-    soup = BeautifulSoup(html.text, 'html.parser')
-    status_code = html.status_code
+def get_url_info(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
     h1 = soup.h1.string if soup.h1 else ''
     title = soup.title.string if soup.title else ''
-    description = ''
-    for link in soup.find_all('meta'):
-        if link.get('name') == 'description':
-            description = link.get('content')
-            break
-    return status_code, h1, title, description
+    description = soup.find('meta', {'name': 'description'})
+    return h1, title, description.get('content') if description else ''
