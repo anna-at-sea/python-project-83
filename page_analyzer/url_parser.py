@@ -1,4 +1,3 @@
-import requests
 from bs4 import BeautifulSoup
 from validators.url import url
 from urllib.parse import urlparse
@@ -13,13 +12,7 @@ def normalize(url_str):
     return f'{parsed_url.scheme}://{parsed_url.netloc}'
 
 
-def check_for_errors(url):
-    html = requests.get(url)
-    return requests.Response.raise_for_status(html)
-
-
-def get_url_info(url):
-    html = requests.get(url)
+def get_url_info(html):
     soup = BeautifulSoup(html.text, 'html.parser')
     status_code = html.status_code
     h1 = soup.h1.string if soup.h1 else ''

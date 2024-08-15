@@ -1,9 +1,10 @@
 import os
+import requests
 from page_analyzer.db_manager import get_all_urls_table, add_url, \
     add_url_check, get_url_id_by_name, get_url_by_id, \
     get_url_checks_by_id
 from page_analyzer.url_parser import validate, normalize, \
-    get_url_info, check_for_errors
+    get_url_info
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, make_response, \
     url_for, redirect, flash
@@ -49,13 +50,12 @@ def url_page(id):
     current_url = get_url_by_id(id)
     if not current_url:
         return render_template('layouts/not_found.html'), 404
-    url_name, url_date = current_url
     url_checks = get_url_checks_by_id(id)
     return render_template(
         'layouts/url_page.html',
         id=id,
-        name=url_name,
-        date=url_date,
+        name=current_url['name'],
+        date=current_url['date'],
         url_checks=url_checks
     )
 
@@ -71,10 +71,11 @@ def all_urls():
 
 @app.post('/urls/<id>/checks')
 def check_url(id):
-    name = get_url_by_id(id)[0]
+    name = get_url_by_id(id)['name']
     try:
-        check_for_errors(name)
-        add_url_check(id, *get_url_info(name))
+        html = requests.get(name)
+        requests.Response.raise_for_status(html)
+        add_url_check(id, *get_url_info(html))
         flash('Страница успешно проверена', 'success')
     except Exception:
         flash('Произошла ошибка при проверке', 'danger')

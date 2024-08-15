@@ -24,13 +24,13 @@ def get_url_id_by_name(name):
 def get_url_by_id(id):
     with (
         connection() as conn,
-        conn.cursor() as cur
+        conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur
     ):
         cur.execute(
-            "SELECT name, DATE(created_at) FROM urls WHERE id = %s;", (id,)
+            "SELECT name, DATE(created_at) AS date FROM urls WHERE id = %s;",
+            (id,)
         )
-        name, created_at = cur.fetchone()
-        return name, created_at
+        return cur.fetchone()
 
 
 def get_url_checks_by_id(id):
